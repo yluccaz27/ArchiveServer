@@ -1,0 +1,273 @@
+/* Painel do Guts
+   Ideia visual: a placa frontal de um equipamento de rack. Fundo grafite
+   azulado, números grandes em Barlow Condensed e, no topo, o caminho que
+   um arquivo percorre (cache -> fila -> nuvem) como um diagrama vivo. */
+
+@font-face { font-family: "Barlow Condensed"; font-weight: 500; font-display: swap;
+  src: url("../fonts/barlow-condensed-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "Barlow Condensed"; font-weight: 600; font-display: swap;
+  src: url("../fonts/barlow-condensed-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "Barlow"; font-weight: 400; font-display: swap;
+  src: url("../fonts/barlow-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Barlow"; font-weight: 500; font-display: swap;
+  src: url("../fonts/barlow-latin-500-normal.woff2") format("woff2"); }
+
+/* ---------- Cores (tema escuro é o padrão) ---------- */
+:root {
+  --fundo:   #12181f;
+  --placa:   #1a222c;
+  --linha:   #2a3542;
+  --texto:   #e2e7ee;
+  --suave:   #93a0b1;
+  --ok:      #4cc9a0;
+  --atencao: #f0b429;
+  --critico: #f2665e;
+  --fluxo:   #6fa8ff;
+
+  --raio: 6px;
+  --corpo: "Barlow", system-ui, sans-serif;
+  --titulo: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --fundo:   #e9edf2;
+    --placa:   #f8fafc;
+    --linha:   #cbd3dd;
+    --texto:   #16202b;
+    --suave:   #4f5d6e;
+    --ok:      #0f8a64;
+    --atencao: #9a6200;
+    --critico: #c2362f;
+    --fluxo:   #2f6fd6;
+  }
+}
+
+/* ---------- Base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--fundo);
+  color: var(--texto);
+  font: 400 1rem/1.5 var(--corpo);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2 { font-family: var(--titulo); font-weight: 600; margin: 0; }
+h2 { font-size: 1.125rem; letter-spacing: .01em; color: var(--suave); font-weight: 500; }
+
+main, .topo, .rodape {
+  max-width: 1120px;
+  margin-inline: auto;
+  padding-inline: 16px;
+}
+
+:focus-visible { outline: 2px solid var(--fluxo); outline-offset: 2px; }
+
+/* ---------- Topo ---------- */
+.topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .5rem 1.5rem;
+  padding-block: 1.5rem 1rem;
+}
+.marca { display: flex; align-items: baseline; gap: .75rem; }
+.marca h1 { font-size: 2.25rem; line-height: 1; }
+.remote { color: var(--suave); font-size: 1rem; }
+.selo {
+  font-size: .8125rem;
+  padding: .1rem .5rem;
+  border: 1px dashed var(--atencao);
+  border-radius: var(--raio);
+  color: var(--atencao);
+}
+.atualizado { margin: 0; color: var(--suave); font-size: .9375rem; }
+
+/* LED de status ao lado do nome */
+.led {
+  width: .7rem; height: .7rem;
+  border-radius: 50%;
+  background: var(--suave);
+  align-self: center;
+}
+.led[data-estado="ok"]      { background: var(--ok);      box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent); }
+.led[data-estado="atencao"] { background: var(--atencao); box-shadow: 0 0 0 3px color-mix(in srgb, var(--atencao) 25%, transparent); }
+.led[data-estado="critico"] { background: var(--critico); box-shadow: 0 0 0 3px color-mix(in srgb, var(--critico) 25%, transparent); }
+
+/* ---------- Alerta global (backend fora) ---------- */
+.alerta {
+  max-width: 1120px;
+  margin: 0 auto 1rem;
+  padding: .75rem 16px;
+  border-left: 4px solid var(--critico);
+  background: color-mix(in srgb, var(--critico) 14%, var(--fundo));
+}
+body.desconectado main { opacity: .55; }
+
+/* ---------- Fluxo: cache -> fila -> nuvem ---------- */
+.fluxo {
+  display: grid;
+  grid-template-columns: 1fr minmax(48px, 96px) 1fr minmax(48px, 96px) 1fr;
+  align-items: stretch;
+  margin-bottom: 1.5rem;
+}
+
+.estacao {
+  background: var(--placa);
+  border: 1px solid var(--linha);
+  border-top: 3px solid var(--cor-faixa, var(--linha));
+  border-radius: var(--raio);
+  padding: 1rem 1.25rem 1.125rem;
+  min-width: 0;
+}
+
+.numero {
+  margin: .25rem 0 .5rem;
+  font: 600 clamp(2.25rem, 5vw, 3.25rem)/1 var(--titulo);
+  letter-spacing: -.01em;
+}
+.numero small {
+  font: 500 1.125rem/1 var(--titulo);
+  color: var(--suave);
+  margin-left: .4rem;
+  letter-spacing: 0;
+}
+
+.nota { margin: .5rem 0 0; color: var(--suave); font-size: .9375rem; }
+
+/* Cano entre as estações: uma linha tracejada que anda quando há upload */
+.cano {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cano::before {
+  content: "";
+  position: absolute;
+  inset: 50% 0 auto 0;
+  height: 2px;
+  transform: translateY(-50%);
+  background: repeating-linear-gradient(90deg, var(--linha) 0 8px, transparent 8px 14px);
+}
+.cano.ativo::before {
+  background: repeating-linear-gradient(90deg, var(--fluxo) 0 8px, transparent 8px 14px);
+  background-size: 14px 2px;
+  animation: correr .6s linear infinite;
+}
+.cano .rotulo {
+  position: relative;
+  padding: .1rem .4rem;
+  background: var(--fundo);
+  color: var(--suave);
+  font: 500 .9375rem/1.2 var(--titulo);
+  white-space: nowrap;
+}
+.cano.ativo .rotulo { color: var(--fluxo); }
+
+@keyframes correr { to { background-position: 14px 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .cano.ativo::before { animation: none; }
+}
+
+/* ---------- Barras ---------- */
+.barra {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--linha);
+  overflow: hidden;
+}
+.barra > span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--cor-faixa, var(--suave));
+  transition: width .4s ease;
+}
+.barra.fina { height: 4px; }
+
+/* Faixas: ok / atenção / crítico. O JS coloca data-faixa no card ou na barra. */
+[data-faixa="ok"]      { --cor-faixa: var(--ok); }
+[data-faixa="atencao"] { --cor-faixa: var(--atencao); }
+[data-faixa="critico"] { --cor-faixa: var(--critico); }
+
+/* ---------- Painéis de detalhe ---------- */
+.detalhes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem 2rem;
+}
+.painel {
+  border-top: 1px solid var(--linha);
+  padding-top: .75rem;
+  min-width: 0;
+}
+.painel .numero { font-size: 2.25rem; }
+
+.pares {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: .35rem 1rem;
+  margin: .75rem 0 0;
+}
+.pares dt { color: var(--suave); }
+.pares dd { margin: 0; font-weight: 500; overflow-wrap: anywhere; }
+.pares.em-linha { grid-template-columns: repeat(3, max-content 1fr); }
+
+.lista { list-style: none; margin: .75rem 0 0; padding: 0; }
+.lista li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: .15rem 1rem;
+  padding: .5rem 0;
+  border-bottom: 1px solid var(--linha);
+}
+.lista li:last-child { border-bottom: 0; }
+.lista .nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lista .pasta { color: var(--suave); }
+.lista .meta { color: var(--suave); font-size: .9375rem; text-align: right; white-space: nowrap; }
+.lista .barra { grid-column: 1 / -1; }
+.lista .vazio { color: var(--suave); display: block; border: 0; }
+
+.marca-envio { color: var(--fluxo); font-weight: 500; }
+
+/* Mensagem de erro dentro de um card */
+.erro-card {
+  margin: .5rem 0 0;
+  padding: .5rem .75rem;
+  border-left: 3px solid var(--critico);
+  background: color-mix(in srgb, var(--critico) 10%, transparent);
+}
+.erro-texto { color: var(--critico); }
+.estado-ok { color: var(--ok); }
+.estado-ruim { color: var(--critico); }
+
+.rodape { color: var(--suave); font-size: .875rem; padding-block: 2.5rem 2rem; }
+
+/* ---------- Celular ---------- */
+@media (max-width: 760px) {
+  .fluxo { grid-template-columns: 1fr; }
+  .cano { height: 44px; }
+  .cano::before {
+    inset: 0 auto 0 50%;
+    width: 2px; height: auto;
+    transform: translateX(-50%);
+    background: repeating-linear-gradient(180deg, var(--linha) 0 8px, transparent 8px 14px);
+  }
+  .cano.ativo::before {
+    background: repeating-linear-gradient(180deg, var(--fluxo) 0 8px, transparent 8px 14px);
+    background-size: 2px 14px;
+    animation-name: correr-vertical;
+  }
+  .detalhes { grid-template-columns: 1fr; }
+  .pares.em-linha { grid-template-columns: max-content 1fr; }
+  /* No celular o nome do arquivo ganha a linha toda e os detalhes vão embaixo */
+  .lista li { grid-template-columns: minmax(0, 1fr); }
+  .lista .meta { text-align: left; }
+}
+@keyframes correr-vertical { to { background-position: 0 14px; } }

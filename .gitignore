@@ -1,0 +1,32 @@
+# Segredos: nunca versionar
+.env
+.env.*
+!.env.example
+secrets/*
+!secrets/.gitkeep
+rclone/*
+!rclone/.gitkeep
+
+# Cache VFS do rclone (pode ter dezenas de GB)
+cache/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Logs
+*.log
+
+# IDE / editores / SO
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Notas locais de trabalho
+prompt-gitignore.md

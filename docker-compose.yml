@@ -1,0 +1,122 @@
+# Painel do Guts: rclone (mount da nuvem) + painel Flask.
+#
+# Valores vêm do arquivo .env (copie de .env.example).
+# Usuário e senha do rc ficam em ./secrets/ e entram como Docker secrets,
+# para não aparecerem no `docker inspect`.
+
+name: guts
+
+services:
+  rclone:
+    image: rclone/rclone:${RCLONE_VERSAO:-1.75.2}
+    container_name: guts-rclone
+    restart: unless-stopped
+
+    # FUSE dentro do container precisa destes três.
+    cap_add: [SYS_ADMIN]
+    devices: [/dev/fuse:/dev/fuse]
+    security_opt: [apparmor:unconfined]
+
+    secrets: [rc_user, rc_pass]
+    environment:
+      RCLONE_CONFIG: /config/rclone/rclone.conf
+      MOUNT_POINT: ${MOUNT_PAI:-/mnt}/${MOUNT_PASTA:-cloud}
+
+    volumes:
+      - ./rclone:/config/rclone
+      - ./cache:/cache
+      # Montamos a pasta-PAI (/mnt), no mesmo caminho dentro e fora, e o
+      # rclone monta em /mnt/cloud lá dentro. "shared" faz o mount aparecer
+      # no host, onde o Samba enxerga.
+      #
+      # Por que a pasta-pai e não /mnt/cloud direto? Se o rclone morrer, o
+      # mount FUSE fica preso ("Transport endpoint is not connected"). Com o
+      # bind direto em /mnt/cloud, o Docker não consegue nem abrir a pasta e
+      # o container não sobe mais até alguém rodar fusermount como root no
+      # host. Com o bind no pai, o container sobe e desmonta o mount preso
+      # sozinho (testado).
+      - ${MOUNT_PAI:-/mnt}:${MOUNT_PAI:-/mnt}:shared
+
+    # Lemos os segredos dos arquivos e exportamos como RCLONE_RC_USER /
+    # RCLONE_RC_PASS. O rclone entende essas variáveis como --rc-user /
+    # --rc-pass. Assim nada sensível aparece no comando nem no inspect.
+    # ($$ = "$" literal para o shell; ${...} simples é preenchido pelo compose.)
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        export RCLONE_RC_USER="$$(cat /run/secrets/rc_user)"
+        export RCLONE_RC_PASS="$$(cat /run/secrets/rc_pass)"
+        if grep -q " $$MOUNT_POINT fuse" /proc/mounts; then
+          echo "desmontando mount antigo preso em $$MOUNT_POINT"
+          umount -l "$$MOUNT_POINT"
+        fi
+        mkdir -p "$$MOUNT_POINT"
+        exec rclone mount "${RCLONE_REMOTE:?defina RCLONE_REMOTE no .env}:" "$$MOUNT_POINT" \
+          --rc --rc-addr :5572 \
+          --allow-other \
+          --uid ${PUID:-1000} --gid ${PGID:-1000} --umask 002 \
+          --vfs-cache-mode full \
+          --vfs-cache-max-size ${VFS_CACHE_MAX_SIZE:-40G} \
+          --vfs-cache-max-age ${VFS_CACHE_MAX_AGE:-72h} \
+          --vfs-cache-min-free-space ${VFS_CACHE_MIN_FREE_SPACE:-10G} \
+          --cache-dir /cache \
+          --dir-cache-time ${DIR_CACHE_TIME:-12h} \
+          --log-level ${RCLONE_LOG_LEVEL:-INFO}
+
+    # O rc NÃO é publicado no host: só existe na rede interna do compose.
+    expose: ["5572"]
+
+    healthcheck:
+      # Saudável = existe um mount FUSE do rclone no ponto de montagem.
+      test: ["CMD-SHELL", "grep -q \" $$MOUNT_POINT fuse\" /proc/mounts"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  painel:
+    build: ./painel
+    image: guts-painel:local
+    container_name: guts-painel
+    restart: unless-stopped
+    depends_on: [rclone]
+
+    # Usuário não-root (o mesmo dono dos arquivos em ./secrets).
+    user: "${PUID:-1000}:${PGID:-1000}"
+    read_only: true
+    tmpfs: [/tmp]
+    # Só a ferramenta du-cache (ver Dockerfile) usa esta capability, para
+    # conseguir ler as pastas do cache que o rclone cria como root (0700).
+    cap_drop: [ALL]
+    cap_add: [DAC_READ_SEARCH]
+
+    secrets: [rc_user, rc_pass]
+    environment:
+      RCLONE_MOCK: ${RCLONE_MOCK:-0}
+      RCLONE_RC_URL: http://rclone:5572
+      RCLONE_RC_USER_FILE: /run/secrets/rc_user
+      RCLONE_RC_PASS_FILE: /run/secrets/rc_pass
+      RCLONE_REMOTE: ${RCLONE_REMOTE}
+      MOUNT_POINT: ${MOUNT_PAI:-/mnt}/${MOUNT_PASTA:-cloud}
+      VFS_CACHE_MAX_SIZE: ${VFS_CACHE_MAX_SIZE:-40G}
+      CACHE_DIR: /cache
+
+    volumes:
+      - ./cache:/cache:ro
+
+    # Única porta publicada. Use o IP da LAN do Guts em PAINEL_BIND_IP.
+    ports:
+      - "${PAINEL_BIND_IP:-127.0.0.1}:${PAINEL_PORTA:-8080}:8080"
+
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+secrets:
+  rc_user:
+    file: ./secrets/rc_user
+  rc_pass:
+    file: ./secrets/rc_pass

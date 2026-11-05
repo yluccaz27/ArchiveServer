@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>Painel do Guts</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><circle cx='8' cy='8' r='6' fill='%234CC9A0'/></svg>">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <header class="topo">
+    <div class="marca">
+      <span class="led" id="led" aria-hidden="true"></span>
+      <h1>Guts</h1>
+      <span class="remote">{{ remote }}:</span>
+      {% if mock %}<span class="selo">dados de teste</span>{% endif %}
+    </div>
+    <!-- aria-live: leitores de tela anunciam quando o estado muda -->
+    <p class="atualizado" id="atualizado" aria-live="polite">Conectando ao painel…</p>
+  </header>
+
+  <div class="alerta" id="alerta" role="alert" hidden></div>
+
+  <main>
+    <!-- O caminho de um arquivo: entra pelo Samba, para no cache do SSD,
+         espera na fila e sobe para a nuvem. -->
+    <section class="fluxo" aria-label="Caminho dos arquivos até a nuvem">
+      <article class="estacao" id="cache" aria-labelledby="t-cache">
+        <h2 id="t-cache">Cache no SSD</h2>
+        <div class="conteudo">
+          <p class="numero"><span data-campo="usado">—</span><small data-campo="limite"></small></p>
+          <div class="barra" role="progressbar" aria-label="Uso do cache" aria-valuemin="0" aria-valuemax="100"><span></span></div>
+          <p class="nota" data-campo="nota"></p>
+        </div>
+      </article>
+
+      <div class="cano" id="cano-fila" aria-hidden="true"><span class="rotulo">grava</span></div>
+
+      <article class="estacao" id="fila" aria-labelledby="t-fila">
+        <h2 id="t-fila">Fila de upload</h2>
+        <div class="conteudo">
+          <p class="numero"><span data-campo="aguardando">—</span><small data-campo="sufixo"></small></p>
+          <p class="nota" data-campo="nota"></p>
+        </div>
+      </article>
+
+      <div class="cano" id="cano-nuvem" aria-hidden="true"><span class="rotulo" id="cano-vel">—</span></div>
+
+      <article class="estacao" id="nuvem" aria-labelledby="t-nuvem">
+        <h2 id="t-nuvem">Nuvem</h2>
+        <div class="conteudo">
+          <p class="numero"><span data-campo="usado">—</span><small data-campo="total"></small></p>
+          <div class="barra" role="progressbar" aria-label="Uso da cota da nuvem" aria-valuemin="0" aria-valuemax="100"><span></span></div>
+          <p class="nota" data-campo="nota"></p>
+        </div>
+      </article>
+    </section>
+
+    <div class="detalhes">
+      <section class="painel" id="mount" aria-labelledby="t-mount">
+        <h2 id="t-mount">Mount</h2>
+        <div class="conteudo">
+          <dl class="pares">
+            <dt>Estado</dt><dd data-campo="estado">—</dd>
+            <dt>Ponto</dt><dd data-campo="ponto">—</dd>
+            <dt>rclone</dt><dd data-campo="versao">—</dd>
+          </dl>
+        </div>
+      </section>
+
+      <section class="painel" id="ssd" aria-labelledby="t-ssd">
+        <h2 id="t-ssd">SSD local</h2>
+        <div class="conteudo">
+          <p class="numero"><span data-campo="pct">—</span><small>em uso</small></p>
+          <div class="barra" role="progressbar" aria-label="Uso do SSD" aria-valuemin="0" aria-valuemax="100"><span></span></div>
+          <dl class="pares">
+            <dt>Livre</dt><dd data-campo="livre">—</dd>
+            <dt>Pasta de cache</dt><dd data-campo="cache_real">—</dd>
+          </dl>
+        </div>
+      </section>
+
+      <section class="painel largo" id="transferencias" aria-labelledby="t-transf">
+        <h2 id="t-transf">Transferências</h2>
+        <div class="conteudo">
+          <dl class="pares em-linha">
+            <dt>Velocidade</dt><dd data-campo="velocidade">—</dd>
+            <dt>Transferido</dt><dd data-campo="bytes">—</dd>
+            <dt>Erros</dt><dd data-campo="erros">—</dd>
+          </dl>
+          <p class="nota erro-texto" data-campo="ultimo_erro" hidden></p>
+          <ul class="lista" data-campo="ativas"></ul>
+        </div>
+      </section>
+
+      <section class="painel largo" id="fila-itens" aria-labelledby="t-fila-itens">
+        <h2 id="t-fila-itens">Próximos uploads</h2>
+        <div class="conteudo">
+          <ul class="lista" data-campo="itens"></ul>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="rodape">Somente leitura. Nada aqui apaga ou move arquivos.</footer>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
